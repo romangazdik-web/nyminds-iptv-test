@@ -1,0 +1,26 @@
+{
+  "name": "nyminds-iptv-tizenbrew-test",
+  "version": "0.6.0",
+  "description": "Testovaci IPTV pro TizenBrew: kategorie, oblibene, HLS/HTML5, dalkovy ovladac.",
+  "packageType": "app",
+  "appName": "Nymind’s IPTV TEST 0.6",
+  "appPath": "app/index.html",
+  "keys": [
+    "MediaPlay",
+    "MediaPause",
+    "MediaPlayPause",
+    "MediaStop",
+    "ChannelUp",
+    "ChannelDown",
+    "ColorF0Red",
+    "ColorF1Green",
+    "ColorF2Yellow",
+    "ColorF3Blue"
+  ],
+  "license": "MIT",
+  "files": [
+    "app",
+    "README.md",
+    "LICENSE"
+  ]
+}
