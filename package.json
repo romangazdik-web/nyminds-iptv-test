@@ -1,10 +1,10 @@
 {
   "name": "nyminds-iptv-tizenbrew-test",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "description": "Testovaci IPTV pro TizenBrew: kategorie, oblibene, HLS/HTML5, dalkovy ovladac.",
   "packageType": "app",
-  "appName": "Nymind’s IPTV TEST 0.8",
-  "appPath": "app/index.html",
+  "appName": "Nymind’s IPTV TEST 0.8.1",
+  "appPath": "app/iptv-081.html",
   "keys": [
     "MediaPlay",
     "MediaPause",
