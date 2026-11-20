@@ -47,15 +47,21 @@ button:focus,input:focus,textarea:focus{outline:3px solid #80c9ff;outline-offset
 <style>
 .view,.dialog-back,.player{top:0;right:0;bottom:0;left:0}
 button:focus,input:focus,summary:focus,textarea:focus{outline:4px solid #ffdb68;outline-offset:-4px}
+
+#urlPad{position:absolute;top:0;right:0;bottom:0;left:0;z-index:60;background:#0c182b;display:flex;align-items:center;justify-content:center}
+#urlPad section{width:85%;max-width:1050px}
+#padPreview{background:#182f49;border:1px solid #7892ac;padding:14px;color:white;overflow:auto;white-space:pre;font-family:monospace;direction:ltr}
+.padRow{display:flex;margin:6px 0}
+.padRow button{flex:1;min-width:0;margin:0 3px;padding:8px;font-size:20px}
 </style></head>
 <body>
 <section id="mainView" class="view">
- <header class="top"><div class="brand">Nymind’s <em>IPTV</em><span class="pill">TIZEN TEST 0.7</span></div><div class="top-right"><span class="status" id="clock"></span><button id="playlistButton">⚙ M3U playlist</button><button id="goHomeButton">⌂ Domů</button></div></header>
+ <header class="top"><div class="brand">Nymind’s <em>IPTV</em><span class="pill">TIZEN TEST 0.8</span></div><div class="top-right"><span class="status" id="clock"></span><button id="playlistButton">⚙ M3U playlist</button><button id="goHomeButton">⌂ Domů</button></div></header>
  <main class="content">
   <aside class="groups"><div class="section-title">Knihovna</div><div id="groupsList"></div><div class="category-control"><button id="switchMode" type="button">Podle M3U skupin</button><div class="microhint">Přepnout automatické třídění</div></div></aside>
   <section class="channels"><div class="ch-head"><h2 id="listTitle">Televizní kanály</h2><input id="search" class="search" placeholder="Hledat kanál…" aria-label="Hledat kanál" /></div><div class="ch-scroll" id="channelList"></div><div class="pager"><button id="pagePrev">← Předchozí</button><span id="pageLabel">0 / 0</span><button id="pageNext">Další →</button></div></section>
   <section class="detail"><div class="intro"><div class="eyebrow">● NYMIND’S LIVE</div><div class="hero-glyph">▶</div><h1 id="mainHeading">Televize podle tebe.</h1><p id="mainDescription">Kanály rozdělené do kategorií, oblíbené stanice a všechno přehledně na jednom místě.</p><div class="statrow"><div class="stat"><strong id="statAll">0</strong><span>kanálů</span></div><div class="stat"><strong id="statFav">0</strong><span>oblíbených</span></div></div><div class="quick-title">RYCHLÝ VÝBĚR</div><div id="quickCategories" class="quick-cats"></div><div class="recent-card" id="recentCard"><span>NAPOSLEDY SLEDOVANÉ</span><strong id="lastChannel">Zatím žádný kanál</strong><button id="playLast" type="button" disabled>▶ Pokračovat</button></div><div id="mainError" role="alert"></div><button class="primary-action" id="mainAction">+ Spravovat M3U</button><div class="tip">Šipky = výběr · OK = přehrát · Modrá = oblíbené · Zpět = Nymind’s TV</div></div></section>
- </main><div class="footerline">Nymind’s IPTV 0.7 · Testovací verze · Nymind’s TV 1.3.5 beze změny</div>
+ </main><div class="footerline">Nymind’s IPTV 0.8 · Testovací verze · Nymind’s TV 1.3.5 beze změny</div>
 </section>
 <section id="playerView" class="view player hidden" aria-label="Přehrávač IPTV">
  <video id="video" autoplay playsinline></video>
@@ -83,10 +89,12 @@ button:focus,input:focus,summary:focus,textarea:focus{outline:4px solid #ffdb68;
  <div id="playlistStatus" class="status" role="status"></div><div class="error" id="dialogError" role="alert"></div>
  <div class="actions"><button id="forgetPlaylist">Smazat uloženou URL</button><button id="closeDialog">Zrušit</button><button class="primary" id="loadPlaylist">Načíst kanály</button></div></div>
 </div>
+<div id="urlPad" class="hidden" role="dialog" aria-modal="true" aria-label="Klávesnice pro M3U adresu">
+<section><h2>M3U adresa</h2><div id="padPreview"></div><p>Šipkami vyber znak a potvrď OK. Tlačítkem Zpět zavřeš klávesnici.</p><div id="padRows"></div></section></div>
 <script>
 (function(){
 'use strict';
-var VERSION='0.7', STORE_URL='nyminds_iptv_url_v1', STORE_FAV='nyminds_iptv_favorites_v1', STORE_RECENT='nyminds_iptv_recent_v1';
+var VERSION='0.8', STORE_URL='nyminds_iptv_url_v1', STORE_FAV='nyminds_iptv_favorites_v1', STORE_RECENT='nyminds_iptv_recent_v1';
 var channels=[], shown=[], groups=[], selectedGroup='__all', page=0, pageSize=40, categoryMode='smart', favorites={}, recent=[], activeIndex=-1, activeChannel=null, playerMode='', hls=null, activeToken=0, prevFocus=null, statusTimer=null, navTimer=null, dialogOpen=false, playlistLoading=false, playlistUrl='', diagnostic='';
 var $=function(id){return document.getElementById(id);};
 function show(id,on){$(id).className=$(id).className.replace(/\bhidden\b/g,'').replace(/\s+/g,' ').trim()+(on?'':' hidden');}
@@ -272,8 +280,58 @@ function endEdit(){if(editing){editing.readOnly=true;editing=null;}}
  field.addEventListener('click',edit);
  field.addEventListener('blur',endEdit);
 });
+var padOpen=false, padUpper=false, padRow=0, padCol=0;
+function padLayout(){
+ var letters=padUpper?'ABCDEFGHIJKLMNOPQRSTUVWXYZ':'abcdefghijklmnopqrstuvwxyz';
+ return ['0123456789'.split(''),letters.slice(0,10).split(''),letters.slice(10,20).split(''),
+  letters.slice(20).split('').concat(['.', '/', ':', '-']),
+  '_?&=%+#@~!'.split(''),"$,;*()[]'|".split(''),
+  ['https://','http://',padUpper?'abc':'ABC','Smazat znak','Hotovo']];
+}
+function previewUrl(){
+ var preview=$('padPreview');preview.textContent=$('m3uUrl').value+'▏';preview.scrollLeft=preview.scrollWidth;
+}
+function padFocus(){var rows=$('padRows').children;rows[padRow].children[padCol].focus();}
+function finishPad(){
+ padOpen=false;show('urlPad',false);$('loadPlaylist').focus();
+}
+function padSelect(key){
+ var input=$('m3uUrl');
+ if(key==='Hotovo'){finishPad();return;}
+ if(key==='ABC'||key==='abc'){padUpper=!padUpper;drawPad();return;}
+ if(key==='Smazat znak')input.value=input.value.slice(0,-1);
+ else input.value+=key;
+ previewUrl();
+}
+function drawPad(){
+ var root=$('padRows');root.textContent='';
+ padLayout().forEach(function(keys,r){
+  var row=element('div','padRow');
+  keys.forEach(function(key,c){
+   var b=element('button','',key);
+   b.onclick=function(){padRow=r;padCol=c;padSelect(key);};
+   row.appendChild(b);
+  });root.appendChild(row);
+ });padFocus();
+}
+function openPad(){
+ endEdit();padOpen=true;padUpper=false;padRow=6;padCol=0;
+ show('urlPad',true);previewUrl();drawPad();
+}
+function padKey(e,code,back){
+ var rows=padLayout();
+ if(back){finishPad();}
+ else if(code===13){if(!e.repeat)padSelect(rows[padRow][padCol]);}
+ else if(code>=37&&code<=40){
+  if(code===38||code===40)padRow=Math.max(0,Math.min(rows.length-1,padRow+(code===38?-1:1)));
+  else padCol+=code===37?-1:1;
+  padCol=Math.max(0,Math.min(rows[padRow].length-1,padCol));padFocus();
+ }else return;
+ e.preventDefault();e.stopPropagation();
+}
 function remoteKey(e){var code=e.keyCode||e.which||({ArrowLeft:37,ArrowUp:38,ArrowRight:39,ArrowDown:40,Enter:13})[e.key],k=e.key||'',back=code===10009||code===8||code===27||k==='Back'||k==='Escape'||k==='BrowserBack';
 var arrow=code>=37&&code<=40,ok=code===13,field=document.activeElement;
+if(padOpen){padKey(e,code,back);return;}
 if(editing && editing===field){
  if(code===8)return;
  if(back || code===65376 || code===65385 || (ok && field.tagName!=='TEXTAREA')){
@@ -286,6 +344,7 @@ var root=dialogOpen?$('dialogOverlay'):diag?$('playerDiag'):$('playerView').clas
 if(root && arrow){e.preventDefault();navigate(root,code);return;}
 if(root && ok){
  if(!root.contains(field)){navigate(root,40);return;}
+ if(field===$('m3uUrl')){e.preventDefault();openPad();return;}
  if(textField(field)){editing=field;field.readOnly=false;return;}
  e.preventDefault();if(!e.repeat)field.click();return;
 }
